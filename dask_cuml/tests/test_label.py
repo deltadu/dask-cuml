@@ -1,0 +1,113 @@
+#
+# Copyright (c) 2019, NVIDIA CORPORATION.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+import numpy as np
+from cudf import Series, DataFrame
+import dask_cudf as dc
+
+import pytest
+
+import nvstrings
+from dask_cuml.preprocessing import LabelEncoder
+
+
+@pytest.mark.parametrize(
+        "values, keys, expected_encoded, unknown",
+        [(dc.from_cudf(Series([2, 1, 3, 1, 3], dtype='int64'), npartitions=2),
+          ['1', '2', '3'],
+          dc.from_cudf(Series([1,0,2,0,2], dtype=np.int32), npartitions=2),
+          dc.from_cudf(Series([4, 5, 6, 7]), npartitions=2)),
+         (dc.from_cudf(Series(['b', 'a', 'c', 'a', 'c'], dtype=object),
+                       npartitions=2),
+          ['a', 'b', 'c'],
+          dc.from_cudf(Series([1,0,2,0,2], dtype=np.int32), npartitions=2),
+          dc.from_cudf(Series(['d', 'e', 'f', 'd']), npartitions=2)),
+         (Series(['b', 'a', 'c', 'a', 'c']),
+          ['a', 'b', 'c'],
+          Series([1, 0, 2, 0, 2], dtype=np.int32),
+          Series(['1', '2', '3', '4']))])
+def test_fit_and_transform(values, keys, expected_encoded, unknown):
+    # Test LabelEncoder's fit and it's reaction to unkown label
+    le = LabelEncoder()
+    le.fit(values)
+    assert(le._fitted == True)
+    
+    keys = nvstrings.to_device(keys)
+    assert(le._cats.keys().to_host() == keys.to_host())
+
+    # Test LabelEncoder's transform
+    encoded = le.transform(values)
+    assert(len(values) == len(values[encoded==expected_encoded]))
+
+    with pytest.raises(ValueError, match='contains previously unseen labels'):
+        le.transform(unknown)
+
+
+@pytest.mark.parametrize(
+        "values, keys, expected_encoded, unknown",
+        [(dc.from_cudf(Series([2, 1, 3, 1, 3], dtype='int64'), npartitions=2),
+          ['1', '2', '3'],
+          dc.from_cudf(Series([1,0,2,0,2], dtype=np.int32), npartitions=2),
+          dc.from_cudf(Series([4, 5, 6, 7]), npartitions=2)),
+         (dc.from_cudf(Series(['b', 'a', 'c', 'a', 'c'], dtype=object),
+                       npartitions=2),
+          ['a', 'b', 'c'],
+          dc.from_cudf(Series([1,0,2,0,2], dtype=np.int32), npartitions=2),
+          dc.from_cudf(Series(['d', 'e', 'f', 'd']), npartitions=2)),
+         (Series(['b', 'a', 'c', 'a', 'c']),
+          ['a', 'b', 'c'],
+          Series([1, 0, 2, 0, 2], dtype=np.int32),
+          Series(['1', '2', '3', '4']))])
+def test_fit_transform(values, keys, expected_encoded, unknown):
+    # Test LabelEncoder's fit_transform and it's reaction to unkown label
+    le = LabelEncoder()
+    encoded = le.fit_transform(values)
+    assert(len(values) == len(values[encoded==expected_encoded]))
+    
+    assert(le._fitted == True)
+
+    with pytest.raises(ValueError, match='contains previously unseen labels'):
+        le.transform(unknown)
+
+
+def test_transform_without_fit():
+    # Test if ValueError is raised if it is asked to transform without fit
+    values = dc.from_cudf(Series(['b', 'a', 'c', 'a']), npartitions=2)
+    le = LabelEncoder()
+    assert(le._fitted == False)
+    with pytest.raises(ValueError, match='LabelEncoder must be fit first'):
+        le.transform(values)
+
+
+@pytest.mark.parametrize(
+        "values",
+        [[1,2,3],
+        DataFrame({'a': range(10)}),
+        np.array(['a', 'b', 'c']),
+        None
+        ])
+def test_bad_input_type(values):
+    # Test fit with bad input_type
+    le = LabelEncoder()
+    with pytest.raises(TypeError,
+                       match='not dask_cudf.Series or cudf.Series'):
+        le.fit(values)
+
+    # Test fit_transform with bad input_type
+    le = LabelEncoder()
+    with pytest.raises(TypeError,
+                       match='not dask_cudf.Series or cudf.Series'):
+        le.fit_transform(values)
