@@ -16,7 +16,6 @@
 
 import numpy as np
 import cudf
-import dask
 import dask_cudf
 
 import nvcategory
@@ -54,11 +53,9 @@ class LabelEncoder(object):
         self._dtype = None
         self._fitted = False
 
-
     def _check_is_fitted(self):
         if (not self._fitted) or (self._cats is None):
             raise ValueError('LabelEncoder must be fit first')
-
 
     def fit(self, y):
         if isinstance(y, dask_cudf.Series):
@@ -74,7 +71,6 @@ class LabelEncoder(object):
         self._dtyp = y.dtype
 
         return self
-
 
     def transform(self, y):
         self._check_is_fitted()
@@ -96,7 +92,6 @@ class LabelEncoder(object):
                 'Input of type {} is not dask_cudf.Series '
                 + 'or cudf.Series'.format(type(y)))
         return encoded
-
 
     def fit_transform(self, y):
         if isinstance(y, dask_cudf.Series):
@@ -120,10 +115,9 @@ class LabelEncoder(object):
             raise TypeError(
                 'Input of type {} is not dask_cudf.Series '
                 + 'or cudf.Series'.format(type(y)))
-        
+
         self._dtype = y.dtype
         return encoded
-
 
     def inverse_transform(self, y):
         raise NotImplementedError
