@@ -29,7 +29,7 @@ def _enforce_str(y):
     return y
 
 
-def _trans_inplace(ser, categories):
+def _trans(ser, categories):
     encoded = (nvcategory
                .from_strings(ser.data)
                .set_keys(categories.keys()))
@@ -81,13 +81,13 @@ class LabelEncoder(object):
 
         if isinstance(y, dask_cudf.Series):
             y = y.map_partitions(_enforce_str)
-            encoded = y.map_partitions(_trans_inplace, self._cats)
+            encoded = y.map_partitions(_trans, self._cats)
             if len(encoded[encoded == -1].compute()) != 0:
                 raise ValueError('contains previously unseen labels')
 
         elif isinstance(y, cudf.Series):
             y = _enforce_str(y)
-            encoded = _trans_inplace(y, self._cats)
+            encoded = _trans(y, self._cats)
             if -1 in encoded:
                 raise ValueError('contains previously unseen labels')
 
@@ -104,7 +104,7 @@ class LabelEncoder(object):
             self._cats = nvcategory.from_strings(y.unique().compute().data)
             self._fitted = True
 
-            encoded = y.map_partitions(_trans_inplace, self._cats)
+            encoded = y.map_partitions(_trans, self._cats)
             if len(encoded[encoded == -1].compute()) != 0:
                 raise ValueError('contains previously unseen labels')
 
@@ -113,7 +113,7 @@ class LabelEncoder(object):
             self._cats = nvcategory.from_strings(y.data)
             self._fitted = True
 
-            encoded = _trans_inplace(y, self._cats)
+            encoded = _trans(y, self._cats)
             if -1 in encoded:
                 raise ValueError('contains previously unseen labels')
         else:

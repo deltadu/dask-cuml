@@ -23,4 +23,5 @@ __all__ = [
     "linear_model",
     "neighbors",
     "core",
+    "preprocessing"
 ]
