@@ -15,3 +15,8 @@
 #
 
 from dask_cuml.preprocessing.label import LabelEncoder
+
+
+__all__ = [
+    'LabelEncoder'
+]

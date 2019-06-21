@@ -23,12 +23,27 @@ from librmm_cffi import librmm
 
 
 def _enforce_str(y):
+    ''' Check and convert to string '''
     if y.dtype != "object":
         return y.astype("str")
     return y
 
 
 def _trans(ser, categories):
+    ''' Helper function to encode cudf.Series with keys provided in nvcategory
+
+    Parameters
+    ----------
+    ser : cudf.Series
+        The series to be encoded
+    categories : nvcategory.nvcategory
+        Nvcategory that contains the keys to encode ser
+
+    Returns
+    -------
+    ser : cudf.Series
+        Encoded series
+    '''
     encoded = (nvcategory
                .from_strings(ser.data)
                .set_keys(categories.keys()))
@@ -38,15 +53,34 @@ def _trans(ser, categories):
     return ser
 
 
-# def _trans(ser, categories):
-#     encoded = (nvcategory
-#                .from_strings(ser.data)
-#                .set_keys(categories.keys())
-#                .values)
-#     return encoded
-
-
 class LabelEncoder(object):
+    ''' Encode labels with value between 0 and n_classes-1
+
+    Examples
+    --------
+    >>> from dask_cuml.preprocessing import LabelEncoder
+    >>> import dask_cudf
+    >>> import cudf
+
+    >>> data = cudf.Series(['a', 'b', 'a', 'b', 'c', 'd', 'a'])
+    >>> data = dask_cudf.from_cudf(data, npartitions=2)
+
+    >>> le = LabelEncoder()
+    >>> le.fit(data)
+    >>> print(le._cats.keys())
+    ['a', 'b', 'c', 'd']
+
+    >>> encoded = le.transform(data)
+    >>> print(encoded.compute())
+    0    0
+    1    1
+    2    0
+    3    1
+    0    2
+    1    3
+    2    0
+    dtype: int32
+    '''
 
     def __init__(self, *args, **kwargs):
         self._cats = None
@@ -54,10 +88,24 @@ class LabelEncoder(object):
         self._fitted = False
 
     def _check_is_fitted(self):
+        ''' Check whether the LabelEncoder object has been fitted and
+        is ready to transform, raise a ValueError otherwise.
+        '''
         if (not self._fitted) or (self._cats is None):
             raise ValueError('LabelEncoder must be fit first')
 
     def fit(self, y):
+        ''' Fit label encoder
+
+        Parameters
+        ----------
+        y : dask_cudf.Series or cudf.Series
+            Target values
+
+        Returns
+        -------
+        self : returns an instance of self
+        '''
         if isinstance(y, dask_cudf.Series):
             y = y.map_partitions(_enforce_str)
             self._cats = nvcategory.from_strings(y.compute().data)
@@ -73,6 +121,18 @@ class LabelEncoder(object):
         return self
 
     def transform(self, y):
+        ''' Transform labels to normalized encoding
+
+        Parameters
+        ----------
+        y : dask_cudf.Series or cudf.Series
+            Target values
+
+        Returns
+        -------
+        encoded : dask_cudf.Series or cudf.Series
+            Encoded labels
+        '''
         self._check_is_fitted()
 
         if isinstance(y, dask_cudf.Series):
@@ -94,6 +154,18 @@ class LabelEncoder(object):
         return encoded
 
     def fit_transform(self, y):
+        ''' Fit label encoder and return encoded labels
+
+        Parameters
+        ----------
+        y : dask_cudf.Series or cudf.Series
+            Target values
+
+        Returns
+        -------
+        encoded : dask_cudf.Series or cudf.Series
+            Encoded labels
+        '''
         if isinstance(y, dask_cudf.Series):
             y = y.map_partitions(_enforce_str)
             self._cats = nvcategory.from_strings(y.compute().data)
