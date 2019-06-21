@@ -60,7 +60,7 @@ class LabelEncoder(object):
     def fit(self, y):
         if isinstance(y, dask_cudf.Series):
             y = y.map_partitions(_enforce_str)
-            self._cats = nvcategory.from_strings(y.unique().compute().data)
+            self._cats = nvcategory.from_strings(y.compute().data)
         elif isinstance(y, cudf.Series):
             y = _enforce_str(y)
             self._cats = nvcategory.from_strings(y.data)
@@ -96,7 +96,7 @@ class LabelEncoder(object):
     def fit_transform(self, y):
         if isinstance(y, dask_cudf.Series):
             y = y.map_partitions(_enforce_str)
-            self._cats = nvcategory.from_strings(y.unique().compute().data)
+            self._cats = nvcategory.from_strings(y.compute().data)
             self._fitted = True
 
             encoded = y.map_partitions(_trans, self._cats)
