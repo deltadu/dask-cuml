@@ -110,3 +110,32 @@ def test_bad_input_type(values):
     with pytest.raises(TypeError,
                        match='not dask_cudf.Series or cudf.Series'):
         le.fit_transform(values)
+
+
+@pytest.mark.parametrize(
+        "orig_label, ord_label, expected_reverted, bad_ord_label",
+        [(dc.from_cudf(Series(['a', 'b' ,'c']), npartitions=2),
+          dc.from_cudf(Series([2, 1, 2, 0]), npartitions=2),
+          Series(['c', 'b' ,'c', 'a']),
+          dc.from_cudf(Series([-1, 1, 2, 0]), npartitions=2)),
+         (dc.from_cudf(Series(['Tokyo', 'Paris' ,'Austin']), npartitions=2),
+          dc.from_cudf(Series([0, 2, 0]), npartitions=2),
+          Series(['Austin', 'Tokyo', 'Austin']),
+          dc.from_cudf(Series([0, 1, 2, 3]), npartitions=2))])
+def test_inverse_transform(orig_label, ord_label,
+                           expected_reverted, bad_ord_label):
+    # prepare LabelEncoder
+    le = LabelEncoder()
+    le.fit(orig_label)
+    assert(le._fitted is True)
+
+    # test if inverse_transform is correct
+    reverted = le.inverse_transform(ord_label)
+    print(reverted)
+    assert(len(expected_reverted) \
+        == len(reverted[reverted == expected_reverted]))
+
+    # test if correctly raies ValueError
+    with pytest.raises(ValueError, match='is out of bound'):
+        le.inverse_transform(bad_ord_label)
+

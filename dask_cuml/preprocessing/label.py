@@ -53,6 +53,36 @@ def _trans(ser, categories):
     return ser
 
 
+def _trans_back(ser, categories, orig_dtype):
+    ''' Helper function to revert encoded label to original label
+
+    Parameters
+    ----------
+    ser : cudf.Series, dtype=object (string)
+        The series to be reverted
+    categories : nvcategory.nvcategory
+        Nvcategory that contains the keys to encoding
+
+    Returns
+    -------
+    reverted : cudf.Series
+        Reverted series
+    '''
+    # nvstrings.replace() doesn't take nvstrings for now, so need to_host()
+    ord_label = ser.data.to_host()
+    keys = categories.keys().to_host()
+
+    reverted = ser.data
+    for ord_str in ord_label:
+        ord_int = int(ord_str)
+        if ord_int < 0 or ord_int >= len(categories.keys()):
+            raise ValueError('Input label {} is out of bound'.format(ord_int))
+        reverted = reverted.replace(ord_str, keys[ord_int])
+
+    reverted = cudf.Series(reverted, dtype=orig_dtype)
+    return reverted
+
+
 class LabelEncoder(object):
     ''' Encode labels with value between 0 and n_classes-1
 
@@ -116,7 +146,7 @@ class LabelEncoder(object):
             raise TypeError('Input of type {} is not dask_cudf.Series '
                             + 'or cudf.Series'.format(type(y)))
         self._fitted = True
-        self._dtyp = y.dtype
+        self._dtype = y.dtype
 
         return self
 
@@ -192,4 +222,31 @@ class LabelEncoder(object):
         return encoded
 
     def inverse_transform(self, y):
-        raise NotImplementedError
+        ''' Revert ordinal label to original label
+
+        Parameters
+        ----------
+        y : dask_cudf.Series or cudf.Series, dtype=int32
+            Ordinal labels waited to be reverted
+
+        Returns
+        -------
+        reverted : cudf.Series
+            Reverted labels
+        '''
+        if isinstance(y, dask_cudf.Series):
+            # convert int32 to string
+            str_ord_label = y.map_partitions(_enforce_str).compute()
+            # then, convert int32 to original label in original dtype
+            reverted = _trans_back(str_ord_label, self._cats, self._dtype)
+
+        elif isinstance(y, cudf.Series):
+            str_ord_label = _enforce_str(y)
+            reverted = _trans_back(str_ord_label, self._cats, self._dtype)
+
+        else:
+            raise TypeError(
+                'Input of type {} is not dask_cudf.Series '
+                + 'or cudf.Series'.format(type(y)))
+
+        return reverted
