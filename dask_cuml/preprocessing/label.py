@@ -72,7 +72,7 @@ def _trans_back(ser, categories, orig_dtype):
     sorted_ord_label = ser.sort_values(ascending=False)
     keys = categories.keys().to_host()
     reverted = ser.astype('str').data
-    
+
     for ord_int in sorted_ord_label:
         ord_str = str(ord_int)
         if ord_int < 0 or ord_int >= len(categories.keys()):
