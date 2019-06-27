@@ -85,7 +85,7 @@ def _trans_back(ser, categories, orig_dtype):
 
 class LabelEncoder(object):
     ''' Encode labels with value between 0 and n_classes-1
-    
+
     Notes
     -----
     Be aware that, if need inverse_transform(), input labels should not contain

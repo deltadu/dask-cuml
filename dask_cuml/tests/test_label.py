@@ -50,7 +50,8 @@ def test_fit_and_transform(values, keys, expected_encoded, unknown):
 
     # Test LabelEncoder's transform
     encoded = le.transform(values)
-    assert(len(values) == len(values[encoded == expected_encoded]))
+    assert(len(encoded) == len(expected_encoded))
+    assert(len(encoded) == len(encoded[encoded == expected_encoded]))
 
     with pytest.raises(ValueError, match='contains previously unseen labels'):
         le.transform(unknown)
@@ -75,7 +76,8 @@ def test_fit_transform(values, keys, expected_encoded, unknown):
     # Test LabelEncoder's fit_transform and it's reaction to unkown label
     le = LabelEncoder()
     encoded = le.fit_transform(values)
-    assert(len(values) == len(values[encoded == expected_encoded]))
+    assert(len(encoded) == len(expected_encoded))
+    assert(len(encoded) == len(encoded[encoded == expected_encoded]))
 
     assert(le._fitted is True)
 
@@ -131,7 +133,8 @@ def test_inverse_transform(orig_label, ord_label,
 
     # test if inverse_transform is correct
     reverted = le.inverse_transform(ord_label)
-    assert(len(expected_reverted)
+    assert(len(reverted) == len(expected_reverted))
+    assert(len(reverted)
            == len(reverted[reverted == expected_reverted]))
 
     # test if correctly raies ValueError
