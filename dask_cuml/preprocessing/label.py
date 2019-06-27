@@ -85,6 +85,11 @@ def _trans_back(ser, categories, orig_dtype):
 
 class LabelEncoder(object):
     ''' Encode labels with value between 0 and n_classes-1
+    
+    Notes
+    -----
+    Be aware that, if need inverse_transform(), input labels should not contain
+    any digit !!
 
     Examples
     --------
@@ -110,6 +115,20 @@ class LabelEncoder(object):
     1    3
     2    0
     dtype: int32
+
+    >>> ord_label = cudf.Series([0, 0, 1, 2, 1])
+    >>> ord_label = dask_cudf.from_cudf(data, npartitions=2)
+    >>> str_label = le.inverse_transform(ord_label)
+    >>> print(type(str_label))
+    <class 'cudf.dataframe.series.Series'>
+
+    >>> print(str_label)
+    0    a
+    1    a
+    2    b
+    3    c
+    4    b
+    dtype: object
     '''
 
     def __init__(self, *args, **kwargs):
@@ -234,6 +253,8 @@ class LabelEncoder(object):
         reverted : cudf.Series
             Reverted labels
         '''
+        self._check_is_fitted()
+
         if isinstance(y, dask_cudf.Series):
             # convert int32 to string
             str_ord_label = y.map_partitions(_enforce_str).compute()

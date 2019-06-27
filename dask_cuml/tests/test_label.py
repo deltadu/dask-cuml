@@ -131,10 +131,20 @@ def test_inverse_transform(orig_label, ord_label,
 
     # test if inverse_transform is correct
     reverted = le.inverse_transform(ord_label)
-    print(reverted)
     assert(len(expected_reverted)
            == len(reverted[reverted == expected_reverted]))
 
     # test if correctly raies ValueError
     with pytest.raises(ValueError, match='is out of bound'):
         le.inverse_transform(bad_ord_label)
+
+
+def test_unfitted_inverse_transform():
+    """ Try calling `.inverse_transform()` without fitting first
+    """
+    orig_label = Series(np.random.choice(10, (10,)))
+    le = LabelEncoder()
+    assert(not le._fitted)
+
+    with pytest.raises(ValueError, match='LabelEncoder must be fit first'):
+        le.transform(orig_label)
