@@ -58,7 +58,7 @@ def _trans_back(ser, categories, orig_dtype):
 
     Parameters
     ----------
-    ser : cudf.Series, dtype=object (int)
+    ser : cudf.Series, dtype=int32
         The series to be reverted
     categories : nvcategory.nvcategory
         Nvcategory that contains the keys to encoding
@@ -68,9 +68,17 @@ def _trans_back(ser, categories, orig_dtype):
     reverted : cudf.Series
         Reverted series
     '''
-    # nvstrings.replace() doesn't take nvstrings for now, so need to_host()
+    # Since inverse_transform is done by replacing ordinal label with
+    # corresponding string label, it is important to sort the ordinal
+    # from high to low, and process in this order. Otherwise, the ordinal label
+    # may be messed up.
+    # e.g. if ordinal label '0' is replaced first, '10' will be messed up
+    # and become '1label_of_zero' instead of 'label_of_ten'
     sorted_ord_label = ser.sort_values(ascending=False)
+
+    # nvstrings.replace() doesn't take nvstrings as param, so need to_host()
     keys = categories.keys().to_host()
+    # convert ordinal labels to nvstrings, and apply .replace() later
     reverted = ser.astype('str').data
 
     for ord_int in sorted_ord_label:
@@ -256,10 +264,11 @@ class LabelEncoder(object):
         self._check_is_fitted()
 
         if isinstance(y, dask_cudf.Series):
-            # convert int32 to original label in original dtype
+            # convert ordinal label to string label
             reverted = _trans_back(y.compute(), self._cats, self._dtype)
 
         elif isinstance(y, cudf.Series):
+            # convert ordinal label to string label
             reverted = _trans_back(y, self._cats, self._dtype)
 
         else:
