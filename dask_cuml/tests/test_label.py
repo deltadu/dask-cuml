@@ -137,8 +137,8 @@ def test_inverse_transform(orig_label, ord_label,
     assert(len(reverted)
            == len(reverted[reverted == expected_reverted]))
 
-    # test if correctly raies ValueError
-    with pytest.raises(ValueError, match='is out of bound'):
+    # test if correctly raises ValueError
+    with pytest.raises(ValueError, match='contains previously unseen label'):
         le.inverse_transform(bad_ord_label)
 
 
