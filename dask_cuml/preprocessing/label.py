@@ -29,6 +29,12 @@ def _enforce_str(y):
     return y
 
 
+def _check_npint32(y: cudf.Series) -> cudf.Series:
+    if y.dtype != np.int32:
+        return y.astype(np.int32)
+    return y
+
+
 def _trans(ser, categories):
     ''' Helper function to encode cudf.Series with keys provided in nvcategory
 
@@ -53,42 +59,42 @@ def _trans(ser, categories):
     return ser
 
 
-def _trans_back(ser, categories, orig_dtype):
-    ''' Helper function to revert encoded label to original label
+# def _trans_back(ser, categories, orig_dtype):
+#     ''' Helper function to revert encoded label to original label
 
-    Parameters
-    ----------
-    ser : cudf.Series, dtype=int32
-        The series to be reverted
-    categories : nvcategory.nvcategory
-        Nvcategory that contains the keys to encoding
+#     Parameters
+#     ----------
+#     ser : cudf.Series, dtype=int32
+#         The series to be reverted
+#     categories : nvcategory.nvcategory
+#         Nvcategory that contains the keys to encoding
 
-    Returns
-    -------
-    reverted : cudf.Series
-        Reverted series
-    '''
-    # Since inverse_transform is done by replacing ordinal label with
-    # corresponding string label, it is important to sort the ordinal
-    # from high to low, and process in this order. Otherwise, the ordinal label
-    # may be messed up.
-    # e.g. if ordinal label '0' is replaced first, '10' will be messed up
-    # and become '1label_of_zero' instead of 'label_of_ten'
-    sorted_ord_label = ser.unique().sort_values(ascending=False)
+#     Returns
+#     -------
+#     reverted : cudf.Series
+#         Reverted series
+#     '''
+#     # Since inverse_transform is done by replacing ordinal label with
+#     # corresponding string label, it is important to sort the ordinal
+#     # from high to low, and process in this order. Otherwise, the ordinal label
+#     # may be messed up.
+#     # e.g. if ordinal label '0' is replaced first, '10' will be messed up
+#     # and become '1label_of_zero' instead of 'label_of_ten'
+#     sorted_ord_label = ser.unique().sort_values(ascending=False)
 
-    # nvstrings.replace() doesn't take nvstrings as param, so need to_host()
-    keys = categories.keys().to_host()
-    # convert ordinal labels to nvstrings, and apply .replace() later
-    reverted = ser.astype('str').data
+#     # nvstrings.replace() doesn't take nvstrings as param, so need to_host()
+#     keys = categories.keys().to_host()
+#     # convert ordinal labels to nvstrings, and apply .replace() later
+#     reverted = ser.astype('str').data
 
-    for ord_int in sorted_ord_label:
-        ord_str = str(ord_int)
-        if ord_int < 0 or ord_int >= len(categories.keys()):
-            raise ValueError('Input label {} is out of bound'.format(ord_int))
-        reverted = reverted.replace(ord_str, keys[ord_int])
+#     for ord_int in sorted_ord_label:
+#         ord_str = str(ord_int)
+#         if ord_int < 0 or ord_int >= len(categories.keys()):
+#             raise ValueError('Input label {} is out of bound'.format(ord_int))
+#         reverted = reverted.replace(ord_str, keys[ord_int])
 
-    reverted = cudf.Series(reverted, dtype=orig_dtype)
-    return reverted
+#     reverted = cudf.Series(reverted, dtype=orig_dtype)
+#     return reverted
 
 
 class LabelEncoder(object):
@@ -266,35 +272,19 @@ class LabelEncoder(object):
                 raise ValueError(
                     'y contains previously unseen label {}'.format(ordi))
 
-
-
         if isinstance(y, dask_cudf.Series):
-            # convert ordinal label to string label
-            reverted = _trans_back(y.compute(), self._cats, self._dtype)
+            y = y.compute()         # convert to cudf.Series
 
-        elif isinstance(y, cudf.Series):
+        if isinstance(y, cudf.Series):
+            # check if y's dtype is np.int32, otherwise convert it
+            y = _check_npint32(y)
             # convert ordinal label to string label
-            reverted = _trans_back(y, self._cats, self._dtype)
+            reverted = self._cats.gather_strings(
+                y.data.mem.device_ctypes_pointer.value, len(y))
 
         else:
             raise TypeError(
                 'Input of type {} is not dask_cudf.Series '
                 + 'or cudf.Series'.format(type(y)))
-
-        return reverted
-
-
-
-        # check if y's dtype is np.int32, otherwise convert it
-        y = _check_npint32(y)
-
-
-        # convert ordinal label to string label
-        reverted = self._cats.gather_strings(
-            y.data.mem.device_ctypes_pointer.value, len(y))
-
-        # convert to original datatype?
-        # if y.dtype != self._dtype:
-        #     y = y.astype(self._dtype)
 
         return reverted
