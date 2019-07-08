@@ -264,18 +264,18 @@ class LabelEncoder(object):
         '''
         self._check_is_fitted()
 
-        # check if ord_label out of bound
-        ord_label = y.unique()
-        category_num = len(self._cats.keys())
-        for ordi in ord_label:
-            if ordi < 0 or ordi >= category_num:
-                raise ValueError(
-                    'y contains previously unseen label {}'.format(ordi))
-
         if isinstance(y, dask_cudf.Series):
             y = y.compute()         # convert to cudf.Series
 
         if isinstance(y, cudf.Series):
+            # check if ord_label out of bound
+            ord_label = y.unique()
+            category_num = len(self._cats.keys())
+            for ordi in ord_label:
+                if ordi < 0 or ordi >= category_num:
+                    raise ValueError(
+                        'y contains previously unseen label {}'.format(ordi))
+
             # check if y's dtype is np.int32, otherwise convert it
             y = _check_npint32(y)
             # convert ordinal label to string label
