@@ -94,11 +94,6 @@ def _trans_back(ser, categories, orig_dtype):
 class LabelEncoder(object):
     ''' Encode labels with value between 0 and n_classes-1
 
-    Notes
-    -----
-    Be aware that, if need inverse_transform(), input labels should not contain
-    any digit !!
-
     Examples
     --------
     >>> from dask_cuml.preprocessing import LabelEncoder
@@ -263,6 +258,16 @@ class LabelEncoder(object):
         '''
         self._check_is_fitted()
 
+        # check if ord_label out of bound
+        ord_label = y.unique()
+        category_num = len(self._cats.keys())
+        for ordi in ord_label:
+            if ordi < 0 or ordi >= category_num:
+                raise ValueError(
+                    'y contains previously unseen label {}'.format(ordi))
+
+
+
         if isinstance(y, dask_cudf.Series):
             # convert ordinal label to string label
             reverted = _trans_back(y.compute(), self._cats, self._dtype)
@@ -275,5 +280,21 @@ class LabelEncoder(object):
             raise TypeError(
                 'Input of type {} is not dask_cudf.Series '
                 + 'or cudf.Series'.format(type(y)))
+
+        return reverted
+
+
+
+        # check if y's dtype is np.int32, otherwise convert it
+        y = _check_npint32(y)
+
+
+        # convert ordinal label to string label
+        reverted = self._cats.gather_strings(
+            y.data.mem.device_ctypes_pointer.value, len(y))
+
+        # convert to original datatype?
+        # if y.dtype != self._dtype:
+        #     y = y.astype(self._dtype)
 
         return reverted
