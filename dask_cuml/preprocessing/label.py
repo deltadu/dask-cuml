@@ -76,7 +76,7 @@ def _trans(ser, categories):
 #     '''
 #     # Since inverse_transform is done by replacing ordinal label with
 #     # corresponding string label, it is important to sort the ordinal
-#     # from high to low, and process in this order. Otherwise, the ordinal label
+#   # from high to low, and process in this order. Otherwise, the ordinal label
 #     # may be messed up.
 #     # e.g. if ordinal label '0' is replaced first, '10' will be messed up
 #     # and become '1label_of_zero' instead of 'label_of_ten'
@@ -90,7 +90,7 @@ def _trans(ser, categories):
 #     for ord_int in sorted_ord_label:
 #         ord_str = str(ord_int)
 #         if ord_int < 0 or ord_int >= len(categories.keys()):
-#             raise ValueError('Input label {} is out of bound'.format(ord_int))
+#            raise ValueError('Input label {} is out of bound'.format(ord_int))
 #         reverted = reverted.replace(ord_str, keys[ord_int])
 
 #     reverted = cudf.Series(reverted, dtype=orig_dtype)
