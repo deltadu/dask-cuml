@@ -279,8 +279,8 @@ class LabelEncoder(object):
             # check if y's dtype is np.int32, otherwise convert it
             y = _check_npint32(y)
             # convert ordinal label to string label
-            reverted = self._cats.gather_strings(
-                y.data.mem.device_ctypes_pointer.value, len(y))
+            reverted = cudf.Series(self._cats.gather_strings(
+                y.data.mem.device_ctypes_pointer.value, len(y)))
 
         else:
             raise TypeError(
